@@ -3,16 +3,14 @@ package cslist;
 import java.util.Arrays;
 import java.util.AbstractList;
 import java.util.Collection;
+import java.util.Objects;
 
 /**
  *  This class implements some of the methods of the Java
  *  ArrayList class.
  * @param <E> The element type
- *  @author .
  */
-public class CSArrayList<E>
-        extends AbstractList<E>
-{
+public class CSArrayList<E> extends AbstractList<E> {
     // Data Fields
 
     /** The default initial capacity */
@@ -36,13 +34,19 @@ public class CSArrayList<E>
         theData = (E[]) new Object[capacity];
     }
 
-
     /**
      * Construct an ArrayList<E> from any Collection whose elements are E or a subtype of E.
      * @param c The Collection
      */
+    @SuppressWarnings("unchecked")
     public CSArrayList(Collection<? extends E> c) {
-        this.addAll(c);
+        if (c == null) throw new NullPointerException("collection is null");
+        int initial = Math.max(INITIAL_CAPACITY, c.size());
+        this.capacity = Math.max(1, initial);
+        this.theData = (E[]) new Object[this.capacity];
+        for (E e : c) {
+            add(e);
+        }
     }
 
     /**
@@ -51,8 +55,9 @@ public class CSArrayList<E>
      */
     @SuppressWarnings("unchecked")
     public CSArrayList(int capacity) {
-        this.capacity = capacity;
-        theData = (E[]) new Object[capacity];
+        if (capacity < 0) throw new IllegalArgumentException("capacity < 0");
+        this.capacity = Math.max(1, capacity);
+        theData = (E[]) new Object[this.capacity];
     }
 
 
@@ -69,6 +74,7 @@ public class CSArrayList<E>
         }
         theData[size] = anEntry;
         size++;
+        modCount++; // fail-fast: structural modification
         return true;
     }
 
@@ -77,6 +83,7 @@ public class CSArrayList<E>
      * @param index - The index of the item desired
      * @param anEntry The value to be added to the list.
      */
+    @Override
     public void add (int index, E anEntry) {
         if (index < 0 || index > size) {
             throw new ArrayIndexOutOfBoundsException(index);
@@ -91,7 +98,9 @@ public class CSArrayList<E>
         // Insert the new item.
         theData[index] = anEntry;
         size++;
+        modCount++; // fail-fast: structural modification
     }
+
     /**
      * Get a value in the array based on its index.
      * @param index - The index of the item desired
@@ -144,7 +153,9 @@ public class CSArrayList<E>
         for (int i = index + 1; i < size; i++) {
             theData[i - 1] = theData[i];
         }
-        size--;
+        // avoid loitering
+        theData[--size] = null;
+        modCount++; // fail-fast: structural modification
         return returnValue;
     }
 
@@ -152,7 +163,7 @@ public class CSArrayList<E>
      * Allocate a new array that is twice the size of the current array. Copies the contents of the current array to the new one using .copyOf
      */
     private void reallocate() {
-        capacity = 2 * capacity;
+        capacity = Math.max(1, 2 * capacity);
         theData = Arrays.copyOf(theData, capacity);
     }
 
@@ -175,17 +186,92 @@ public class CSArrayList<E>
     @Override
     public int indexOf(Object item) {
         for (int i = 0; i < size; i++) {
-            if (theData[i] == null && item == null) {
-                return i;
-            }
-            if (theData[i].equals(item)) {
+            if (Objects.equals(theData[i], item)) {
                 return i;
             }
         }
         return -1;
     }
+
+    /* =======================
+       Part A — Added Methods
+       ======================= */
+
+    /**
+     * Return a string representation like [a, b, c]
+     */
+    @Override
+    public String toString() {
+        if (size == 0) return "[]";
+        StringBuilder sb = new StringBuilder();
+        sb.append('[');
+        for (int i = 0; i < size; i++) {
+            sb.append(theData[i]);
+            if (i != size - 1) sb.append(", ");
+        }
+        sb.append(']');
+        return sb.toString();
+    }
+
+    /**
+     * Remove all elements from the list (size becomes 0).
+     * Capacity is unchanged.
+     */
+    @Override
+    public void clear() {
+        // Null out references for GC
+        for (int i = 0; i < size; i++) {
+            theData[i] = null;
+        }
+        size = 0;
+        modCount++; // fail-fast: structural modification
+    }
+
+    /**
+     * Returns true if this list contains no elements.
+     */
+    @Override
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    /**
+     * Removes the first occurrence of the specified element from this list, if it is present.
+     * Returns true if this list contained the specified element.
+     */
+    @Override
+    public boolean remove(Object o) {
+        int idx = indexOf(o);
+        if (idx == -1) return false;
+        remove(idx); // already updates modCount and shifts
+        return true;
+    }
+
+    /**
+     * Ensure the internal array can hold at least minCapacity elements without resizing.
+     * Does not change size.
+     */
+    public void ensureCapacity(int minCapacity) {
+        if (minCapacity < 0) throw new IllegalArgumentException("minCapacity < 0");
+        if (minCapacity <= capacity) return;
+        // grow to at least minCapacity (doubling strategy)
+        int newCap = capacity;
+        if (newCap == 0) newCap = INITIAL_CAPACITY;
+        while (newCap < minCapacity) {
+            newCap = newCap * 2;
+        }
+        theData = Arrays.copyOf(theData, newCap);
+        capacity = newCap;
+        // Not a structural modification of the list contents; do not touch modCount
+    }
+
+    /**
+     * Trims the capacity of this list instance to be the list's current size.
+     */
+    public void trimToSize() {
+        if (capacity == size) return;
+        theData = Arrays.copyOf(theData, size);
+        capacity = size;
+        // Not a structural modification of the list contents; do not touch modCount
+    }
 }
-
-
-
-
